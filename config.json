@@ -1,0 +1,73 @@
+{
+	"name": "Address Autocompletion",
+
+	"description": "This module takes address coordinates from fields specified and autocompletes a street address. Requires a Google API key and an https connection.",
+	
+	"permissions": [
+		"hook_every_page_top"
+	],
+
+	"links": {
+	},
+
+	"global-settings": [
+	],
+	
+	"project-settings": [
+                {
+			"key": "google-api-key",
+			"name": "Google API Key",
+			"required": true,
+			"type": "text"
+		},
+		{
+			"key": "autocomplete",
+			"name": "Autocomplete Field (text only)",
+			"required": true,
+			"type": "field-list",
+			"repeatable": false
+		},
+		{
+			"key": "street-number",
+			"name": "Street Number Field",
+			"required": false,
+			"type": "field-list",
+			"repeatable": false
+		},
+		{
+			"key": "street",
+			"name": "Street Field",
+			"required": false,
+			"type": "field-list",
+			"repeatable": false
+		},
+		{
+			"key": "city",
+			"name": "City Field",
+			"required": false,
+			"type": "field-list",
+			"repeatable": false
+		},
+		{
+			"key": "state",
+			"name": "State Field",
+			"required": false,
+			"type": "field-list",
+			"repeatable": false
+		},
+		{
+			"key": "zip",
+			"name": "Zip Code Field",
+			"required": false,
+			"type": "field-list",
+			"repeatable": false
+		},
+		{
+			"key": "country",
+			"name": "Country Field",
+			"required": false,
+			"type": "field-list",
+			"repeatable": false
+		}
+	]
+}
