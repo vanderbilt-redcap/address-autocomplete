@@ -3,7 +3,7 @@ require_once dirname(__FILE__) . '/../../external_modules/classes/ExternalModule
 
 class AddressExternalModule extends AbstractExternalModule
 {
-        function hook_every_page_top($project_id) {
+    function hook_every_page_top($project_id) {
 		$validPages = array("DataEntry/index.php", "surveys/index.php");
 		if ($project_id && (in_array(PAGE, $validPages))) {
 			\REDCap::allowProjects(array($project_id));
@@ -18,6 +18,7 @@ class AddressExternalModule extends AbstractExternalModule
 			$state = $module_data['state']['value'];
 			$zip = $module_data['zip']['value'];
 			$country = $module_data['country']['value'];
+			$import = $module_data['import-google-api']['value'];
 		
 
 			if ($key && $autocomplete) {
@@ -25,7 +26,7 @@ class AddressExternalModule extends AbstractExternalModule
 				echo "<script>";
 				echo "var autocompletePrefix = 'googleSearch_';";
 				echo "var autocompleteId = autocompletePrefix+'autocomplete';";
-				echo "window.onload = function() {";
+				echo "$(document).ready(function() {";
 				$numFields = 0;
 				if ($streetNumber) {
 					echo "$('[name=\"".$streetNumber."\"]').attr('id', autocompletePrefix+'street_number');";
@@ -65,7 +66,7 @@ class AddressExternalModule extends AbstractExternalModule
 					echo "$('[name=\"".$autocomplete."\"]').focus(function() { geolocate(); });";
 				}
 				echo "initAutocomplete();";
-				echo "};";
+				echo "});";
 				echo "</script>";
 	
 				# Google code configured to this system
@@ -112,6 +113,7 @@ class AddressExternalModule extends AbstractExternalModule
 							echo "document.getElementById(autocompletePrefix+addressType).disabled = false;";
 						echo "}";
 					echo "}";
+                    echo "doBranching();";
 				echo "}";
 	
 				echo "/* Bias the autocomplete object to the user's geographical location,";
@@ -135,7 +137,9 @@ class AddressExternalModule extends AbstractExternalModule
 				echo "</script>";
 
 				# import Google API for places
-				echo '<script src="https://maps.googleapis.com/maps/api/js?key='.$key.'&libraries=places" async defer></script>';
+                if ($import) {
+                    echo "<script type=\"text/javascript\" src=\"https://maps.googleapis.com/maps/api/js?key=".$key."&libraries=places\" async defer></script>";
+                }
 			}
 		}
 	}

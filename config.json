@@ -2,7 +2,14 @@
 	"name": "Address Autocompletion",
 
 	"description": "This module takes address coordinates from fields specified and autocompletes a street address. Requires a Google API key and an https connection.",
-	
+
+    "authors": [
+        {
+            "name": "Scott J. Pearson",
+            "email": "scott.j.pearson@vanderbilt.edu"
+        }
+    ],
+
 	"permissions": [
 		"hook_every_page_top"
 	],
@@ -68,6 +75,13 @@
 			"required": false,
 			"type": "field-list",
 			"repeatable": false
-		}
+		},
+        {
+            "key": "import-google-api",
+            "name": "Import Google API",
+            "required": false,
+            "type": "checkbox",
+            "repeatable": false
+        }
 	]
 }
