@@ -1,4 +1,7 @@
-<?php namespace ExternalModules;
+<?php namespace Vanderbilt\AddressExternalModule;
+
+use ExternalModules\AbstractExternalModule;
+use ExternalModules\ExternalModules;
 
 class AddressExternalModule extends AbstractExternalModule
 {

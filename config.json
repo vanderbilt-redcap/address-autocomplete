@@ -1,6 +1,8 @@
 {
 	"name": "Address Autocompletion",
 
+	"namespace": "Vanderbilt\\AddressExternalModule",
+
 	"description": "This module takes address coordinates from fields specified and autocompletes a street address. Requires a Google API key and an https connection.",
 
     "authors": [
