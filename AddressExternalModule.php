@@ -99,6 +99,10 @@ class AddressExternalModule extends AbstractExternalModule
 				echo "}";
 	
 				echo "function fillInAddress() {";
+					// Trigger a change event for the field.  This was added so other modules that check the
+					// address would trigger after the address is updated (like Census Geocoder).
+					echo "$('#'+autocompleteId).change();";
+
 					echo "/* Get the place details from the autocomplete object. */";
 					echo "var place = autocomplete.getPlace();";
 					echo "for (var component in componentForm) {";
