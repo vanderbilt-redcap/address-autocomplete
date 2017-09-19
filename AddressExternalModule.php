@@ -97,6 +97,14 @@ class AddressExternalModule extends AbstractExternalModule
 					echo " * fields in the form. */";
 					echo "autocomplete.addListener('place_changed', fillInAddress);";
 				echo "}";
+
+				?>
+				function updateValue(id, value){
+					var element = document.getElementById(id);
+					element.value = value;
+					$(element).change(); // Trigger the change listener, in case other modules/hooks want to know when this field changes.
+				}
+				<?php
 	
 				echo "function fillInAddress() {";
 					// Trigger a change event for the field.  This was added so other modules that check the
@@ -106,7 +114,7 @@ class AddressExternalModule extends AbstractExternalModule
 					echo "/* Get the place details from the autocomplete object. */";
 					echo "var place = autocomplete.getPlace();";
 					echo "for (var component in componentForm) {";
-						echo "document.getElementById(autocompletePrefix+component).value = '';";
+						echo "updateValue(autocompletePrefix+component, '');";
 					echo "}";
 	
 					echo "/* Get each component of the address from the place details";
@@ -115,7 +123,7 @@ class AddressExternalModule extends AbstractExternalModule
 						echo "var addressType = place.address_components[i].types[0];";
 						echo "if (componentForm[addressType] && (document.getElementById(autocompletePrefix+addressType))) {";
 							echo "var val = place.address_components[i][componentForm[addressType]];";
-							echo "document.getElementById(autocompletePrefix+addressType).value = val;";
+							echo "updateValue(autocompletePrefix+addressType, val);";
 							echo "document.getElementById(autocompletePrefix+addressType).disabled = false;";
 						echo "}";
 					echo "}";
