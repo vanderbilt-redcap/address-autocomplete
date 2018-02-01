@@ -5,13 +5,13 @@
 
 	"description": "This module takes address coordinates from fields specified and autocompletes a street address. Requires a Google API key and an https connection.",
 
-    "authors": [
-        {
-            "name": "Scott J. Pearson",
-            "email": "datacore@vanderbilt.edu",
-            "institution": "Vanderbilt University Medical Center"
-        }
-    ],
+	"authors": [
+		{
+			"name": "Scott J. Pearson",
+			"email": "datacore@vanderbilt.edu",
+			"institution": "Vanderbilt University Medical Center"
+		}
+	],
 
 	"permissions": [
 		"hook_every_page_top"
@@ -21,7 +21,7 @@
 	},
 
 	"project-settings": [
-                {
+		{
 			"key": "google-api-key",
 			"name": "Google API Key",
 			"required": true,
@@ -56,6 +56,13 @@
 			"repeatable": false
 		},
 		{
+			"key": "county",
+			"name": "County Field",
+			"required": false,
+			"type": "field-list",
+			"repeatable": false
+		},
+		{
 			"key": "state",
 			"name": "State Field",
 			"required": false,
@@ -76,12 +83,12 @@
 			"type": "field-list",
 			"repeatable": false
 		},
-        {
-            "key": "import-google-api",
-            "name": "Import Google API",
-            "required": false,
-            "type": "checkbox",
-            "repeatable": false
-        }
+		{
+			"key": "import-google-api",
+			"name": "Import Google API",
+			"required": false,
+			"type": "checkbox",
+			"repeatable": false
+		}
 	]
 }
