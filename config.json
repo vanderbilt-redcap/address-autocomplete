@@ -14,7 +14,8 @@
 	],
 
 	"permissions": [
-		"hook_every_page_top"
+		"hook_data_entry_form",
+		"hook_survey_page"
 	],
 
 	"links": {
@@ -79,6 +80,20 @@
 		{
 			"key": "country",
 			"name": "Country Field",
+			"required": false,
+			"type": "field-list",
+			"repeatable": false
+		},
+		{
+			"key": "latitude",
+			"name": "Latitude Field",
+			"required": false,
+			"type": "field-list",
+			"repeatable": false
+		},
+		{
+			"key": "longitude",
+			"name": "Longitude Field",
 			"required": false,
 			"type": "field-list",
 			"repeatable": false
