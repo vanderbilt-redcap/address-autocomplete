@@ -206,11 +206,10 @@ class AddressExternalModule extends AbstractExternalModule
 					}
 				</script>
 
-				<?php if ($import): ?>
-					<!-- import Google API for places -->
-				<script type="text/javascript" src="https://maps.googleapis.com/maps/api/js?key=<?php echo $key; ?>&libraries=places" async defer></script>
-				<?php endif; ?>
 			<?php
+			if ($import) {
+				echo "<script type=\"text/javascript\" src=\"https://maps.googleapis.com/maps/api/js?key=".$key."\"></script>";
+			}
 		}
 	}
 }
