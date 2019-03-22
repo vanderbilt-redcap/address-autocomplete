@@ -129,6 +129,12 @@ class AddressExternalModule extends AbstractExternalModule
 						else {
 							var element = $('#' + id);
 						}
+
+						if(element.length === 0){
+							console.log('Could not find the element with the following id:', id)
+							return
+						}
+						
 						var eleType = element.prop('type');
 						element.val(value);
 
