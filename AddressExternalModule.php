@@ -160,6 +160,12 @@ class AddressExternalModule extends AbstractExternalModule
 						}
 
 						element.change(); // Trigger the change listener, in case other modules/hooks want to know when this field changes.
+
+						if(element.hasClass('rc-autocomplete')){
+							var autocompleteField = element.closest('td').find('.ui-autocomplete-input')
+							autocompleteField.val(element.find('option:selected').text())
+							autocompleteField.change()
+						}
 					}
 
 					function fillInAddress() {
