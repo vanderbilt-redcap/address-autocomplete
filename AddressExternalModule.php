@@ -139,8 +139,8 @@ class AddressExternalModule extends AbstractExternalModule
 						element.val(value);
 
 						// Is this a unique field type?
+						var eleName = element.attr('name');
 						if(element.hasClass('hiddenradio')) { // Are we working with a radio field?
-							var eleName = element.attr('name');
 							$('input[name="'+eleName+'___radio"][value="'+value+'"]').prop('checked', true);
 						} else if(eleType.indexOf("select") >= 0) { // Is it a select field?
 							if($('#'+id+' option[value="'+value+'"]').length > 0) { // Is our value an option in the select?
@@ -152,9 +152,7 @@ class AddressExternalModule extends AbstractExternalModule
 							} else if($('#'+id+' option[value="Other"]').length > 0) { // Still haven't found it. Let's check for an "Other" option
 								$('#'+id+' option[value="Other"]').prop('selected', true);
 							} else {
-								var labelId = element.attr('aria-labelledby');
-								var labelValue = $('#'+labelId).text().trim();
-								alert("Could not auto complete the \""+labelValue+"\" field.");
+								alert("The value '" + value + "' is not a valid value for the '" + eleName + "' field.");
 								$('#'+id+' option[value=""]').prop('selected', true);
 							}
 						}
