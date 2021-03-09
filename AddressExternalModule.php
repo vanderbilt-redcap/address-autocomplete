@@ -152,8 +152,16 @@ class AddressExternalModule extends AbstractExternalModule
 							} else if($('#'+id+' option[value="Other"]').length > 0) { // Still haven't found it. Let's check for an "Other" option
 								$('#'+id+' option[value="Other"]').prop('selected', true);
 							} else {
-								alert("The value '" + value + "' is not a valid value for the '" + eleName + "' field.");
-								$('#'+id+' option[value=""]').prop('selected', true);
+								var optionsWithMatchingContent = $('#'+id+' option').filter(function(){
+									return $(this).html() === value
+								})
+
+								if(optionsWithMatchingContent.length === 1){
+									optionsWithMatchingContent.prop('selected', true);
+								} else {
+									alert("The value '" + value + "' is not a valid value for the '" + eleName + "' field.");
+									$('#'+id+' option[value=""]').prop('selected', true);
+								}
 							}
 						}
 
