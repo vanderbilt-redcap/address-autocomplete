@@ -117,6 +117,12 @@ class AddressExternalModule extends AbstractExternalModule
 						);
 						/* When the user selects an address from the dropdown, populate the address fields in the form. */
 						autocomplete.addListener('place_changed', fillInAddress);
+
+						// if the user deletes the address, erase all address components
+						let addressField = document.getElementById(autocompleteId);
+						addressField.addEventListener('change', (event) => {
+								if (addressField.value === "") { fillInAddress(); }
+							})
 					}
 
 					function updateValue(id, value){
@@ -185,22 +191,30 @@ class AddressExternalModule extends AbstractExternalModule
 							updateValue(autocompletePrefix+component, '');
 						}
 
-						<?php
-							echo ($latitude ? "updateValue('latitude',place.geometry.location.lat());\n" : "");
-							echo ($longitude ? "updateValue('longitude',place.geometry.location.lng());\n" : "");
-						?>
+						if (place !== undefined) {
+							<?php
+								echo ($latitude ? "updateValue('latitude',place.geometry.location.lat());\n" : "");
+								echo ($longitude ? "updateValue('longitude',place.geometry.location.lng());\n" : "");
+							?>
 
-						/* Get each component of the address from the place details and fill the corresponding field on the form. */
-						for (var i = 0; i < place.address_components.length; i++) {
-							var addressType = place.address_components[i].types[0];
-							if (componentForm[addressType] && (document.getElementById(autocompletePrefix+addressType))) {
-								var val = place.address_components[i][componentForm[addressType]];
-								if(addressType == 'administrative_area_level_2') {
-									val =  $.trim(val.replace('County',''));
+							/* Get each component of the address from the place details and fill the corresponding field on the form. */
+							for (var i = 0; i < place.address_components.length; i++) {
+								var addressType = place.address_components[i].types[0];
+								if (componentForm[addressType] && (document.getElementById(autocompletePrefix+addressType))) {
+									var val = place.address_components[i][componentForm[addressType]];
+									if(addressType == 'administrative_area_level_2') {
+										val =  $.trim(val.replace('County',''));
+									}
+									updateValue(autocompletePrefix+addressType, val);
+									document.getElementById(autocompletePrefix+addressType).disabled = false;
 								}
-								updateValue(autocompletePrefix+addressType, val);
-								document.getElementById(autocompletePrefix+addressType).disabled = false;
 							}
+						} else {
+							// undefined place implies a blank address, lat and long must be blanked
+							<?php
+								echo ($latitude ? "updateValue('latitude', '');\n" : "");
+								echo ($longitude ? "updateValue('longitude', '');\n" : "");
+							?>
 						}
 						doBranching();
 					}
