@@ -119,6 +119,14 @@
 			"autocomplete": true
 		},
 		{
+			"key": "place-name",
+			"name": "Place Name Field",
+			"required": false,
+			"type": "field-list",
+			"repeatable": false,
+			"autocomplete": true
+		},
+		{
 			"key": "import-google-api",
 			"name": "Import Google API",
 			"required": false,

@@ -25,6 +25,7 @@ class AddressExternalModule extends AbstractExternalModule
 		$country = $this->getProjectSetting('country',$project_id);
 		$latitude = $this->getProjectSetting('latitude',$project_id);
 		$longitude = $this->getProjectSetting('longitude',$project_id);
+		$placeName = $this->getProjectSetting('place-name',$project_id);
 		$import = $this->getProjectSetting('import-google-api',$project_id);
 
 		if ($key && $autocomplete) {
@@ -112,6 +113,9 @@ SCRIPT;
 					<?php endif; ?>
 					<?php if ($longitude): ?>
 						$('[name="<?php echo $longitude; ?>"]').prop('disabled', true);
+					<?php endif; ?>
+					<?php if ($placeName): ?>
+						$('[name="<?php echo $placeName; ?>"]').attr('id', autocompletePrefix + 'place_name').prop('disabled', true);
 					<?php endif; ?>
 
 					// Wrap original field and hide it; the PlaceAutocompleteElement will replace it visually
@@ -262,7 +266,7 @@ SCRIPT;
 
 							if (place) {
 								await place.fetchFields({
-									fields: ['addressComponents', 'location', 'formattedAddress']
+									fields: ['addressComponents', 'location', 'formattedAddress', 'displayName']
 								});
 							}
 						} catch (e) {
@@ -338,11 +342,17 @@ SCRIPT;
 								document.getElementById(autocompletePrefix + addressType).disabled = false;
 							}
 						}
+						<?php echo ($placeName ? "
+						if (place.name) {
+							updateValue(autocompletePrefix + 'place_name', place.name);
+							document.getElementById(autocompletePrefix + 'place_name').disabled = false;
+						}" : ""); ?>
 					} else {
 						$field.val('');
 						$field.change();
 						<?php echo ($latitude  ? "updateValue('latitude',  '');\n" : ""); ?>
 						<?php echo ($longitude ? "updateValue('longitude', '');\n" : ""); ?>
+						<?php echo ($placeName ? "updateValue(autocompletePrefix + 'place_name', '');\n" : ""); ?>
 					}
 
 					if (typeof doBranching === 'function') { doBranching(); }
@@ -461,12 +471,18 @@ SCRIPT;
 								document.getElementById(autocompletePrefix + addressType).disabled = false;
 							}
 						}
+						<?php echo ($placeName ? "
+						if (place.displayName) {
+							updateValue(autocompletePrefix + 'place_name', place.displayName);
+							document.getElementById(autocompletePrefix + 'place_name').disabled = false;
+						}" : ""); ?>
 					} else {
 						// No place selected — clear the original field and lat/lng
 						$field.val('');
 						$field.change();
 						<?php echo ($latitude  ? "updateValue('latitude',  '');\n" : ""); ?>
 						<?php echo ($longitude ? "updateValue('longitude', '');\n" : ""); ?>
+						<?php echo ($placeName ? "updateValue(autocompletePrefix + 'place_name', '');\n" : ""); ?>
 					}
 
 					if (typeof doBranching === 'function') { doBranching(); }
