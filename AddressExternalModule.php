@@ -26,7 +26,19 @@ class AddressExternalModule extends AbstractExternalModule
 		$latitude = $this->getProjectSetting('latitude',$project_id);
 		$longitude = $this->getProjectSetting('longitude',$project_id);
 		$placeName = $this->getProjectSetting('place-name',$project_id);
+		$recoverUnit = $this->getProjectSetting('recover-unit-from-input',$project_id);
+		$regionCodes = $this->getProjectSetting('included-region-codes',$project_id);
+		$primaryTypes = $this->getProjectSetting('included-primary-types',$project_id);
 		$import = $this->getProjectSetting('import-google-api',$project_id);
+
+		// Turn a comma-separated setting into a JS array literal. Never returns an
+		// empty string: emitting "var x = ;" would be a syntax error that kills the
+		// whole inline script, so json_encode() failure falls back to an empty array.
+		$toJsArray = function($csv) {
+			$parts = array_values(array_filter(array_map('trim', explode(',', (string)$csv)), 'strlen'));
+			$json = json_encode($parts);
+			return ($json === false) ? '[]' : $json;
+		};
 
 		if ($key && $autocomplete) {
 
@@ -61,7 +73,19 @@ SCRIPT;
 				var autocompletePrefix = 'googleSearch_';
 				var autocompleteFieldName = <?php echo json_encode($autocomplete); ?>;
 
+				// Raw text the user typed into the search box, kept so the unit /
+				// apartment number can be recovered when Google omits it. See
+				// recoverUnitFromText().
+				var lastTypedText = '';
+
 				// Component mapping: Google address type -> format preference
+				//
+				// Do NOT add subpremise here. This object doubles as the registry of
+				// "which components have a destination field", and every entry is
+				// cleared through updateValue(autocompletePrefix + type) on each
+				// selection. No googleSearch_subpremise element is ever created, so an
+				// entry here would only log "Could not find the element" every time.
+				// The unit is captured by extractUnitParts() instead.
 				var componentForm = {
 					<?php echo ($streetNumber ? "street_number: 'short_name'," : ""); ?>
 					<?php echo ($street ? "route: 'long_name'," : ""); ?>
@@ -240,14 +264,41 @@ SCRIPT;
 				 * Modern path: PlaceAutocompleteElement (New Places API).
 				 */
 				function initWithNewApi(PlaceAutocompleteElement, $field) {
-					var placeAutocomplete = new PlaceAutocompleteElement({
-						types: ['address']
-					});
+					// NOTE: the legacy option name was `types`, which is NOT valid on
+					// PlaceAutocompleteElement (it is includedPrimaryTypes) and was
+					// therefore a silent no-op. The filters are assigned as properties
+					// below, inside try/catch, so that a bad setting value degrades to
+					// unfiltered predictions instead of aborting initialisation and
+					// leaving the plain text input on the form.
+					var placeAutocomplete = new PlaceAutocompleteElement();
+					try {
+						var regionCodes  = <?php echo $toJsArray($regionCodes); ?>;
+						var primaryTypes = <?php echo $toJsArray($primaryTypes); ?>;
+						if (regionCodes.length)  { placeAutocomplete.includedRegionCodes  = regionCodes; }
+						if (primaryTypes.length) { placeAutocomplete.includedPrimaryTypes = primaryTypes; }
+					} catch (e) {
+						console.warn('[Address Autocomplete] Could not apply prediction filters; predictions will be unfiltered.', e);
+					}
+
 					placeAutocomplete.id = autocompletePrefix + 'autocomplete';
 					placeAutocomplete.setAttribute('placeholder', 'Enter your address here');
 
+					// Surface backend rejections (bad API key, invalid filter value)
+					placeAutocomplete.addEventListener('gmp-error', function(e) {
+						console.error('[Address Autocomplete] Google rejected the request. Check the API key and any prediction filter values.', e);
+					});
+
 					// Insert the new element into the wrapper, before the hidden original field
 					$field.before(placeAutocomplete);
+
+					// Record what the user actually types, for unit recovery.
+					// The widget's shadow root is closed, but `input` events are composed
+					// so they cross it and retarget to the host element, and `value` is a
+					// documented public property. isTrusted filters out the value the
+					// widget writes back itself once a prediction is chosen.
+					placeAutocomplete.addEventListener('input', function(e) {
+						if (e.isTrusted) { lastTypedText = placeAutocomplete.value || ''; }
+					});
 
 					// Apply geolocation bias to improve relevance
 					applyGeolocationBias(placeAutocomplete);
@@ -308,6 +359,13 @@ SCRIPT;
 						fillInAddressLegacy(place, $field);
 					});
 
+					// Record what the user actually types, for unit recovery.
+					// Google replaces the input value with the chosen prediction without
+					// firing `input`, so this only ever sees the user's own text.
+					inputEl.addEventListener('input', function() {
+						lastTypedText = inputEl.value || '';
+					});
+
 					// If the user clears the field, wipe all components
 					inputEl.addEventListener('change', function() {
 						if (inputEl.value === '') { fillInAddressLegacy(undefined, $field); }
@@ -342,6 +400,10 @@ SCRIPT;
 								document.getElementById(autocompletePrefix + addressType).disabled = false;
 							}
 						}
+
+						// Unit / sub-premise. Runs after the loop above so it overwrites
+						// the bare street number that loop just wrote.
+						applyUnitFromComponents(place.address_components, 'short_name', 'long_name', $field);
 						<?php echo ($placeName ? "
 						if (place.name) {
 							updateValue(autocompletePrefix + 'place_name', place.name);
@@ -437,6 +499,127 @@ SCRIPT;
 				}
 
 				/**
+				 * Pick the unit (subpremise) and street number out of the raw component
+				 * list, independently of componentForm — which has no subpremise entry
+				 * and would otherwise skip it.
+				 *
+				 * Serves both API paths: pass ('shortText','longText') for the new Places
+				 * API and ('short_name','long_name') for the legacy one.
+				 */
+				function extractUnitParts(components, shortProp, longProp) {
+					var parts = { unit: '', streetNumber: '' };
+					if (!components || !components.length) { return parts; }
+					for (var i = 0; i < components.length; i++) {
+						var comp = components[i];
+						if (!comp || !comp.types) { continue; }
+						var type = comp.types[0];
+						var val  = comp[shortProp] || comp[longProp] || '';
+						if (type === 'subpremise' && !parts.unit) {
+							parts.unit = String(val).trim();
+						} else if (type === 'street_number' && !parts.streetNumber) {
+							parts.streetNumber = String(val).trim();
+						}
+					}
+					return parts;
+				}
+
+				function escapeRegExp(str) {
+					return String(str).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+				}
+
+				/**
+				 * Recover the unit / apartment number from the text the user typed.
+				 *
+				 * Google frequently omits the subpremise component for AU/UK style unit
+				 * addresses: "3/27 Harris St" comes back as street number 27 with no
+				 * subpremise at all. This parses the unit out of the typed text, anchored
+				 * to the street number Google DID return, and returns '' rather than
+				 * guessing whenever the text does not clearly contain a unit.
+				 */
+				function recoverUnitFromText(typed, streetNumber) {
+					if (!typed || !streetNumber) { return ''; }
+					var text = String(typed).trim();
+					var sn   = String(streetNumber).trim();
+					if (!text || !sn) { return ''; }
+
+					// Locate the street number on a word boundary, so a street number of
+					// "7" is not matched inside "27".
+					var snMatch = new RegExp('(^|[^0-9A-Za-z])' + escapeRegExp(sn) + '(?![0-9A-Za-z])').exec(text);
+					if (!snMatch) { return ''; }
+
+					var snIndex = snMatch.index + snMatch[1].length;
+					if (snIndex <= 0) { return ''; }   // nothing precedes it, so no unit
+
+					var prefix = text.slice(0, snIndex);
+
+					// "27-29 Harris St" is a street number range, not a unit.
+					if (/[-–—]\s*$/.test(prefix)) { return ''; }
+
+					// A unit prefix is short; anything longer is a building or place name.
+					if (prefix.replace(/\s+/g, ' ').trim().length > 24) { return ''; }
+
+					// The prefix must END with a unit token, optionally introduced by a
+					// unit word and optionally followed by "/" or ",". That anchoring is
+					// what rejects "Harris St 27" and "The Old Rectory, 27 Harris St".
+					var unitMatch = /(?:^|[\s,])(?:(?:unit|apt|apartment|flat|suite|ste|shop|villa|lot|level|lvl|room|rm)\.?\s*)?([0-9]{1,5}[A-Za-z]?)\s*[\/,]?\s*$/i.exec(prefix);
+					return unitMatch ? unitMatch[1].toUpperCase() : '';
+				}
+
+				/**
+				 * Write "3/27" into the Street Number field.
+				 *
+				 * Goes through updateValue() so radios, selects and rc-autocomplete
+				 * dropdowns keep working, then re-enables the field — disabled inputs are
+				 * not submitted, so REDCap would otherwise never save the value.
+				 */
+				function applyUnitToStreetNumber(unit, streetNumber) {
+					var id = autocompletePrefix + 'street_number';
+					var el = document.getElementById(id);
+					if (!el || !unit || !streetNumber) { return; }
+					updateValue(id, unit + '/' + streetNumber);
+					el.disabled = false;
+				}
+
+				/**
+				 * Keep the full address stored in the search field consistent with the
+				 * components, by rewriting a leading bare street number to "3/27".
+				 * No-ops when Google supplied the subpremise, because formattedAddress
+				 * already contains the unit in that case.
+				 */
+				function patchFormattedAddress($field, unit, streetNumber) {
+					var current = $field.val();
+					if (!current || !unit || !streetNumber) { return; }
+					var leading = new RegExp('^\\s*' + escapeRegExp(streetNumber) + '(?![0-9A-Za-z])');
+					if (leading.test(current)) {
+						$field.val(current.replace(leading, unit + '/' + streetNumber));
+						$field.change();
+					}
+				}
+
+				/**
+				 * Apply the unit / sub-premise to the Street Number field. Called from
+				 * both fill paths after the components have been written, so that it
+				 * overwrites the bare street number they just stored.
+				 *
+				 * Does nothing unless a Street Number Field is mapped — that field is the
+				 * only destination for the unit.
+				 */
+				function applyUnitFromComponents(components, shortProp, longProp, $field) {
+					var parts = extractUnitParts(components, shortProp, longProp);
+					var unit  = parts.unit;
+					<?php if ($recoverUnit): ?>
+					// Google omitted subpremise — fall back to parsing the typed text.
+					if (!unit) { unit = recoverUnitFromText(lastTypedText, parts.streetNumber); }
+					<?php endif; ?>
+					lastTypedText = '';   // consume, so a later selection cannot reuse it
+
+					if (!unit || !parts.streetNumber) { return; }
+					if (!document.getElementById(autocompletePrefix + 'street_number')) { return; }
+					applyUnitToStreetNumber(unit, parts.streetNumber);
+					patchFormattedAddress($field, unit, parts.streetNumber);
+				}
+
+				/**
 				 * Populate (or clear) all address component fields from the selected Place.
 				 * Uses the NEW Places API property names: addressComponents[].longText / shortText.
 				 */
@@ -471,6 +654,10 @@ SCRIPT;
 								document.getElementById(autocompletePrefix + addressType).disabled = false;
 							}
 						}
+
+						// Unit / sub-premise. Runs after the loop above so it overwrites
+						// the bare street number that loop just wrote.
+						applyUnitFromComponents(place.addressComponents, 'shortText', 'longText', $field);
 						<?php echo ($placeName ? "
 						if (place.displayName) {
 							updateValue(autocompletePrefix + 'place_name', place.displayName);

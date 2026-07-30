@@ -127,6 +127,25 @@
 			"autocomplete": true
 		},
 		{
+			"key": "recover-unit-from-input",
+			"name": "Recover unit/apartment number from typed text<br><span class='fs11'>Google often omits the <i>subpremise</i> component for Australian unit addresses, so <b>3/27 Harris St</b> is returned as street number <b>27</b> and the unit is lost. When enabled, the unit is parsed from what the user typed and prepended to the Street Number Field as <b>3/27</b>.<br>Requires <b>Street Number Field</b> to be mapped, and that field must have <b>no</b> integer/number validation.</span>",
+			"required": false,
+			"type": "checkbox",
+			"repeatable": false
+		},
+		{
+			"key": "included-region-codes",
+			"name": "Restrict predictions to region codes<br><span class='fs11'>Optional comma-separated CLDR region codes, e.g. <b>au</b> (maximum 15). Leave blank for no restriction.</span>",
+			"required": false,
+			"type": "text"
+		},
+		{
+			"key": "included-primary-types",
+			"name": "Restrict predictions to place types<br><span class='fs11'>Optional comma-separated Google place types from Place Type tables A and B, e.g. <b>street_address,premise,subpremise</b> (maximum 5). Leave blank for no restriction. Verify in the browser console that predictions still appear after setting this.</span>",
+			"required": false,
+			"type": "text"
+		},
+		{
 			"key": "import-google-api",
 			"name": "Import Google API",
 			"required": false,
