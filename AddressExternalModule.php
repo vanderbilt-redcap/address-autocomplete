@@ -86,20 +86,16 @@ SCRIPT;
 				// selection. No googleSearch_subpremise element is ever created, so an
 				// entry here would only log "Could not find the element" every time.
 				// The unit is captured by extractUnitParts() instead.
+				// The keys are Google address component TYPE names; the values are the
+				// Place API property to read off the component.
 				var componentForm = {
-					<?php echo ($streetNumber ? "street_number: 'short_name'," : ""); ?>
-					<?php echo ($street ? "route: 'long_name'," : ""); ?>
-					<?php echo ($city ? "locality: 'long_name'," : ""); ?>
-					<?php echo ($county ? "administrative_area_level_2: 'short_name'," : ""); ?>
-					<?php echo ($state ? "administrative_area_level_1: 'short_name'," : ""); ?>
-					<?php echo ($country ? "country: 'long_name'," : ""); ?>
-					<?php echo ($zip ? "postal_code: 'short_name'," : ""); ?>
-				};
-
-				// Map legacy property names to the new Places API property names
-				var formatMap = {
-					'short_name': 'shortText',
-					'long_name': 'longText'
+					<?php echo ($streetNumber ? "street_number: 'shortText'," : ""); ?>
+					<?php echo ($street ? "route: 'longText'," : ""); ?>
+					<?php echo ($city ? "locality: 'longText'," : ""); ?>
+					<?php echo ($county ? "administrative_area_level_2: 'shortText'," : ""); ?>
+					<?php echo ($state ? "administrative_area_level_1: 'shortText'," : ""); ?>
+					<?php echo ($country ? "country: 'longText'," : ""); ?>
+					<?php echo ($zip ? "postal_code: 'shortText'," : ""); ?>
 				};
 
 				$(document).ready(function() {
@@ -151,36 +147,34 @@ SCRIPT;
 				});
 
 				/**
-				 * Polls until we have a usable path to the Places library:
-				 *   - 'importLibrary' → google.maps.importLibrary exists
-				 *   - 'legacy'        → google.maps.places exists
-				 * Rejects after the timeout (default 15 s).
+				 * Polls until google.maps.importLibrary exists, rejecting after the
+				 * timeout (default 15 s).
+				 *
+				 * The bootstrap loader above defines importLibrary synchronously, so this
+				 * resolves immediately when "Import Google API" is enabled. The polling is
+				 * for the other case: another module supplies the API, possibly after
+				 * $(document).ready has already run.
 				 */
-				function waitForPlacesReady(timeoutMs) {
+				function waitForImportLibrary(timeoutMs) {
 					timeoutMs = timeoutMs || 15000;
 					return new Promise(function(resolve, reject) {
-						function check() {
-							if (typeof google !== 'undefined' && google.maps) {
-								if (typeof google.maps.importLibrary === 'function') return 'importLibrary';
-								if (google.maps.places) return 'legacy';
-							}
-							return false;
+						function ready() {
+							return typeof google !== 'undefined' && google.maps &&
+							       typeof google.maps.importLibrary === 'function';
 						}
-						var result = check();
-						if (result) { resolve(result); return; }
+						if (ready()) { resolve(); return; }
 
 						var elapsed = 0;
 						var interval = 150;
 						var poll = setInterval(function() {
 							elapsed += interval;
-							var r = check();
-							if (r) {
+							if (ready()) {
 								clearInterval(poll);
-								resolve(r);
+								resolve();
 							} else if (elapsed >= timeoutMs) {
 								clearInterval(poll);
 								reject(new Error(
-									'Google Maps Places library did not become available within ' +
+									'Google Maps did not become available within ' +
 									(timeoutMs / 1000) + 's. A browser extension (ad blocker) ' +
 									'may be blocking requests to googleapis.com.'
 								));
@@ -190,53 +184,34 @@ SCRIPT;
 				}
 
 				/**
-				 * Load the Places library.
-				 * Waits until either importLibrary or google.maps.places is available,
-				 * then returns a Promise that resolves to the places namespace.
+				 * Load the Places library. This is the only Google library the module
+				 * imports — see initWithNewApi() and applyGeolocationBias(), which are
+				 * deliberately written to need nothing from `maps` or `core`.
 				 */
 				function loadPlacesLibrary() {
-					return waitForPlacesReady().then(function(mode) {
-						console.log('[Address Autocomplete] Google Maps detected via: ' + mode);
-						if (mode === 'importLibrary') {
-							return google.maps.importLibrary('places').catch(function(err) {
-								// importLibrary call failed — last-ditch check for legacy namespace
-								if (google.maps.places) {
-									console.warn('[Address Autocomplete] importLibrary("places") failed; falling back to google.maps.places.', err);
-									return google.maps.places;
-								}
-								throw err;
-							});
-						}
-						// mode === 'legacy'
-						return google.maps.places;
+					return waitForImportLibrary().then(function() {
+						return google.maps.importLibrary('places');
 					});
 				}
 
 				/**
-				 * Initialise autocomplete on the given field.
-				 *
-				 * Strategy (maximises forward-compatibility):
-				 *   1. Prefer the new PlaceAutocompleteElement (New Places API)
-				 *      when available — this is Google's recommended path.
-				 *   2. Fall back to the legacy google.maps.places.Autocomplete
-				 *      when the new class is not present.
+				 * Initialise autocomplete on the given field using PlaceAutocompleteElement
+				 * (Places API New). If that class is absent the API key almost certainly
+				 * does not have Places API (New) enabled — show the error rather than
+				 * degrading to something that looks broken but reports nothing.
 				 */
 				function initAutocomplete($field) {
 					loadPlacesLibrary()
 						.then(function(placesLib) {
-							if (typeof placesLib.PlaceAutocompleteElement === 'function') {
-								// New Places API available — preferred path
-								console.log('[Address Autocomplete] Using New Places API (PlaceAutocompleteElement)');
-								initWithNewApi(placesLib.PlaceAutocompleteElement, $field);
-							} else if (typeof placesLib.Autocomplete === 'function') {
-								// Legacy fallback
-								console.log('[Address Autocomplete] Using Legacy Places API (google.maps.places.Autocomplete)');
-								initWithLegacyApi(placesLib, $field);
-							} else {
+							if (typeof placesLib.PlaceAutocompleteElement !== 'function') {
 								showAutocompleteError($field,
-									'Neither Autocomplete nor PlaceAutocompleteElement found in the Places library.'
+									'PlaceAutocompleteElement is not available. Check that ' +
+									'Places API (New) is enabled for this API key.'
 								);
+								return;
 							}
+							console.log('[Address Autocomplete] Using Places API (New) — PlaceAutocompleteElement');
+							initWithNewApi(placesLib.PlaceAutocompleteElement, $field);
 						})
 						.catch(function(err) {
 							console.error('[Address Autocomplete] Failed to initialise.', err);
@@ -261,15 +236,12 @@ SCRIPT;
 				}
 
 				/**
-				 * Modern path: PlaceAutocompleteElement (New Places API).
+				 * Build the PlaceAutocompleteElement and wire up its events.
 				 */
 				function initWithNewApi(PlaceAutocompleteElement, $field) {
-					// NOTE: the legacy option name was `types`, which is NOT valid on
-					// PlaceAutocompleteElement (it is includedPrimaryTypes) and was
-					// therefore a silent no-op. The filters are assigned as properties
-					// below, inside try/catch, so that a bad setting value degrades to
-					// unfiltered predictions instead of aborting initialisation and
-					// leaving the plain text input on the form.
+					// The prediction filters are assigned as properties inside try/catch so
+					// that a bad setting value degrades to unfiltered predictions instead of
+					// aborting initialisation and leaving a plain text input on the form.
 					var placeAutocomplete = new PlaceAutocompleteElement();
 					try {
 						var regionCodes  = <?php echo $toJsArray($regionCodes); ?>;
@@ -297,7 +269,12 @@ SCRIPT;
 					// documented public property. isTrusted filters out the value the
 					// widget writes back itself once a prediction is chosen.
 					placeAutocomplete.addEventListener('input', function(e) {
-						if (e.isTrusted) { lastTypedText = placeAutocomplete.value || ''; }
+						if (!e.isTrusted) { return; }
+						var typed = placeAutocomplete.value || '';
+						lastTypedText = typed;
+						// Emptying the box clears every destination field, so a cleared
+						// search can never leave the previous address behind.
+						if (typed === '') { fillInAddress(null, $field); }
 					});
 
 					// Apply geolocation bias to improve relevance
@@ -329,118 +306,31 @@ SCRIPT;
 				}
 
 				/**
-				 * Legacy fallback: google.maps.places.Autocomplete (deprecated but
-				 * still functional on pages that loaded the API the old way).
-				 */
-				function initWithLegacyApi(placesLib, $field) {
-					// Show the original input again — the legacy class attaches to it
-					$field.show();
-					$field.attr('id', autocompletePrefix + 'autocomplete');
-					$field.attr('placeholder', 'Enter your address here');
-
-					var inputEl = $field[0];
-					var autocompleteObj = new placesLib.Autocomplete(inputEl, {
-						types: ['address']
-					});
-
-					// Geolocation bias
-					if (navigator.geolocation) {
-						navigator.geolocation.getCurrentPosition(function(position) {
-							var circle = new google.maps.Circle({
-								center: { lat: position.coords.latitude, lng: position.coords.longitude },
-								radius: position.coords.accuracy
-							});
-							autocompleteObj.setBounds(circle.getBounds());
-						});
-					}
-
-					autocompleteObj.addListener('place_changed', function() {
-						var place = autocompleteObj.getPlace();
-						fillInAddressLegacy(place, $field);
-					});
-
-					// Record what the user actually types, for unit recovery.
-					// Google replaces the input value with the chosen prediction without
-					// firing `input`, so this only ever sees the user's own text.
-					inputEl.addEventListener('input', function() {
-						lastTypedText = inputEl.value || '';
-					});
-
-					// If the user clears the field, wipe all components
-					inputEl.addEventListener('change', function() {
-						if (inputEl.value === '') { fillInAddressLegacy(undefined, $field); }
-					});
-				}
-
-				/**
-				 * Fill address from the legacy Autocomplete Place result.
-				 * Uses address_components[].short_name / long_name (old property names).
-				 */
-				function fillInAddressLegacy(place, $field) {
-					for (var component in componentForm) {
-						updateValue(autocompletePrefix + component, '');
-					}
-
-					if (place && place.address_components) {
-						$field.change();
-
-						if (place.geometry && place.geometry.location) {
-							<?php echo ($latitude  ? "updateValue('latitude',  place.geometry.location.lat());\n" : ""); ?>
-							<?php echo ($longitude ? "updateValue('longitude', place.geometry.location.lng());\n" : ""); ?>
-						}
-
-						for (var i = 0; i < place.address_components.length; i++) {
-							var addressType = place.address_components[i].types[0];
-							if (componentForm[addressType] && document.getElementById(autocompletePrefix + addressType)) {
-								var val = place.address_components[i][componentForm[addressType]];
-								if (addressType === 'administrative_area_level_2') {
-									val = $.trim(val.replace('County', ''));
-								}
-								updateValue(autocompletePrefix + addressType, val);
-								document.getElementById(autocompletePrefix + addressType).disabled = false;
-							}
-						}
-
-						// Unit / sub-premise. Runs after the loop above so it overwrites
-						// the bare street number that loop just wrote.
-						applyUnitFromComponents(place.address_components, 'short_name', 'long_name', $field);
-						<?php echo ($placeName ? "
-						if (place.name) {
-							updateValue(autocompletePrefix + 'place_name', place.name);
-							document.getElementById(autocompletePrefix + 'place_name').disabled = false;
-						}" : ""); ?>
-					} else {
-						$field.val('');
-						$field.change();
-						<?php echo ($latitude  ? "updateValue('latitude',  '');\n" : ""); ?>
-						<?php echo ($longitude ? "updateValue('longitude', '');\n" : ""); ?>
-						<?php echo ($placeName ? "updateValue(autocompletePrefix + 'place_name', '');\n" : ""); ?>
-					}
-
-					if (typeof doBranching === 'function') { doBranching(); }
-				}
-
-				/**
 				 * Bias the autocomplete results toward the user's current location.
+				 *
+				 * locationBias accepts a CircleLiteral ({center, radius}) directly, so no
+				 * google.maps.Circle is constructed. That matters: Circle belongs to the
+				 * `maps` library, which this module never imports, so referencing it here
+				 * would throw inside the geolocation callback where nothing catches it.
 				 */
 				function applyGeolocationBias(placeAutocomplete) {
-					if (navigator.geolocation) {
-						navigator.geolocation.getCurrentPosition(function(position) {
-							var circle = new google.maps.Circle({
-								center: {
-									lat: position.coords.latitude,
-									lng: position.coords.longitude
-								},
-								radius: position.coords.accuracy
-							});
-							placeAutocomplete.locationBias = circle.getBounds();
-						});
-					}
+					if (!navigator.geolocation) { return; }
+					navigator.geolocation.getCurrentPosition(function(position) {
+						placeAutocomplete.locationBias = {
+							center: {
+								lat: position.coords.latitude,
+								lng: position.coords.longitude
+							},
+							radius: position.coords.accuracy
+						};
+					}, function(err) {
+						console.log('[Address Autocomplete] Geolocation unavailable; predictions will not be location-biased.', err);
+					});
 				}
 
 				/**
 				 * Helper: update a REDCap field value, handling radios, selects,
-				 * and rc-autocomplete dropdowns.  (Preserved from v1.0.0.)
+				 * and rc-autocomplete dropdowns.
 				 */
 				function updateValue(id, value) {
 					if (id == 'latitude') {
@@ -502,18 +392,15 @@ SCRIPT;
 				 * Pick the unit (subpremise) and street number out of the raw component
 				 * list, independently of componentForm — which has no subpremise entry
 				 * and would otherwise skip it.
-				 *
-				 * Serves both API paths: pass ('shortText','longText') for the new Places
-				 * API and ('short_name','long_name') for the legacy one.
 				 */
-				function extractUnitParts(components, shortProp, longProp) {
+				function extractUnitParts(components) {
 					var parts = { unit: '', streetNumber: '' };
 					if (!components || !components.length) { return parts; }
 					for (var i = 0; i < components.length; i++) {
 						var comp = components[i];
 						if (!comp || !comp.types) { continue; }
 						var type = comp.types[0];
-						var val  = comp[shortProp] || comp[longProp] || '';
+						var val  = comp.shortText || comp.longText || '';
 						if (type === 'subpremise' && !parts.unit) {
 							parts.unit = String(val).trim();
 						} else if (type === 'street_number' && !parts.streetNumber) {
@@ -597,15 +484,15 @@ SCRIPT;
 				}
 
 				/**
-				 * Apply the unit / sub-premise to the Street Number field. Called from
-				 * both fill paths after the components have been written, so that it
-				 * overwrites the bare street number they just stored.
+				 * Apply the unit / sub-premise to the Street Number field. Called after the
+				 * components have been written, so that it overwrites the bare street
+				 * number they just stored.
 				 *
 				 * Does nothing unless a Street Number Field is mapped — that field is the
 				 * only destination for the unit.
 				 */
-				function applyUnitFromComponents(components, shortProp, longProp, $field) {
-					var parts = extractUnitParts(components, shortProp, longProp);
+				function applyUnitFromComponents(components, $field) {
+					var parts = extractUnitParts(components);
 					var unit  = parts.unit;
 					<?php if ($recoverUnit): ?>
 					// Google omitted subpremise — fall back to parsing the typed text.
@@ -645,8 +532,7 @@ SCRIPT;
 							var comp = place.addressComponents[i];
 							var addressType = comp.types[0];
 							if (componentForm[addressType] && document.getElementById(autocompletePrefix + addressType)) {
-								var formatKey  = componentForm[addressType];   // 'short_name' or 'long_name'
-								var val = comp[formatMap[formatKey]];          // maps to 'shortText' or 'longText'
+								var val = comp[componentForm[addressType]];   // 'shortText' or 'longText'
 								if (addressType === 'administrative_area_level_2') {
 									val = $.trim(val.replace('County', ''));
 								}
@@ -657,7 +543,7 @@ SCRIPT;
 
 						// Unit / sub-premise. Runs after the loop above so it overwrites
 						// the bare street number that loop just wrote.
-						applyUnitFromComponents(place.addressComponents, 'shortText', 'longText', $field);
+						applyUnitFromComponents(place.addressComponents, $field);
 						<?php echo ($placeName ? "
 						if (place.displayName) {
 							updateValue(autocompletePrefix + 'place_name', place.displayName);
