@@ -10,7 +10,15 @@ A REDCap External Module that adds Google Maps address autocomplete to survey an
 
 There is no build system, package manager, or test suite — changes are deployed by copying `AddressExternalModule.php` and `config.json` into `redcap/modules/<module_name>_v<version>/` (never rename that directory; the version lives in its name).
 
-**PHP is not installed on the dev machine, so `php -l` has never been run here.** Validate emitted-JS changes with a throwaway Node harness: extract the `<script>` block containing `autocompletePrefix`, regex out the `<?php … ?>` tags to simulate substitution, and parse with `new Function()`. Run it for **both** emit branches — all optional settings mapped and none mapped — since the PHP conditionals produce materially different JS. The same harness can brace-match named helpers out of the source and exercise them directly; use it to re-run the unit-recovery table in `README.md` after touching `recoverUnitFromText()`. Two things the harness must assert because they are silent killers: no unsubstituted `<?php` tag survives, and no empty assignment (`var x = ;`) is emitted.
+**Verification toolchain.** PHP **is** installed — `D:\PHP\v8.5.7\php.exe` (not on `PATH`; earlier notes here claiming otherwise were wrong). Always `php -l` before deploying. **Node is genuinely not installed**; run JS through headless Edge instead:
+
+```
+"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe" --headless --disable-gpu --no-sandbox --virtual-time-budget=5000 --user-data-dir=<tmp> --dump-dom <file:// url>
+```
+
+Launch it via `Start-Process -Wait -RedirectStandardOutput`, not `&` with `>` — Edge detaches and holds the output file open otherwise.
+
+Validate emitted-JS changes with a throwaway harness: render the real output by stubbing `AbstractExternalModule`/`getProjectSetting()` under `php`, extract the `<script>` block containing `autocompletePrefix`, and parse it with `new Function()`. Run it for **both** emit branches — all optional settings mapped and none mapped — since the PHP conditionals produce materially different JS. The same harness can brace-match named helpers out of the source and exercise them directly; use it to re-run the unit-recovery table in `README.md` after touching `recoverUnitFromText()`. Two things the harness must assert because they are silent killers: no unsubstituted `<?php` tag survives, and no empty assignment (`var x = ;`) is emitted.
 
 ## Architecture
 
@@ -40,7 +48,8 @@ Settings are **baked into the IIFE at emit time**, not read at runtime. Optional
 - **`places` is the only library imported.** Never reference `google.maps.Circle`, `LatLngBounds`, or anything else from `maps`/`core` without importing that library — they are `undefined`, and a reference inside an async callback (a geolocation success handler, say) throws where nothing catches or logs it. This is exactly how the location bias was silently broken before v1.2.
 - PHP uses a nowdoc (`<<<'SCRIPT'`) for the Google bootstrap loader to prevent PHP from interpreting JS template literals (e.g. `${c}`) as PHP variables. The API key cannot live in a nowdoc, so it is injected via a separate `<script>` tag setting `window.__addressAutoKey`.
 - **Never emit a bare PHP value into a JS assignment.** `$toJsArray()` falls back to `[]` when `json_encode()` fails, because `var x = ;` is a syntax error that kills the whole IIFE and leaves a plain text box on the form. Any new setting emitted into JS needs the same guarantee.
-- Destination fields are `disabled` on load and re-enabled individually as each receives a value — this prevents manual edits and ensures REDCap saves only autocomplete-populated values. Anything that writes a value must also re-enable its element, or the value is never submitted.
+- Destination fields are `disabled` on load and re-enabled as each receives a value — this prevents manual edits and ensures REDCap saves only autocomplete-populated values. **Re-enabling is centralised in `updateValue()`**, which is the only correct place for it: latitude/longitude have no per-component call site of their own and so went unsaved for as long as re-enabling was done by the callers. Do not re-disable an element after writing it, and route any new write path through `updateValue()` rather than setting `.val()` directly. Fields still load disabled — nothing calls `updateValue()` until the user selects or clears an address.
+- Values read off a component must tolerate a **missing property**. `comp[componentForm[addressType]]` falls back to `comp.shortText || comp.longText || ''`; Google omits `shortText` on some components, and any bare string method on the result (the `County` strip) otherwise throws and aborts the whole component loop.
 - Destination elements are found by `id = 'googleSearch_' + <google component type>`. That prefix convention is the lookup mechanism for the entire script.
 - A guard at the top of `$(document).ready` exits early if the autocomplete source field is not present on the current form, avoiding errors on multi-instrument projects.
 - The source field is hidden, not removed. It still submits, and it holds the full formatted address.

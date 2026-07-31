@@ -198,14 +198,20 @@ Inside `$(document).ready`:
    Google widget can take its visual place while the original field still submits with the form.
 
 Destination fields start **disabled** on purpose: it prevents manual edits, and it means REDCap
-saves a component value only once autocomplete has actually written one. Each field is re-enabled
-individually, at the moment it receives a value.
+saves a component value only once autocomplete has actually written one. Re-enabling happens inside
+`updateValue()`, so every field it writes — including latitude and longitude, and including a write
+of `''` on the clear path — becomes submittable at the moment it receives that value. Nothing calls
+`updateValue()` until the user selects or clears an address, so the fields are still disabled and
+unsubmittable on a freshly loaded form.
 
 ### Filling the fields
 
 `fillInAddress()` reads `place.addressComponents` (values via `shortText` / `longText`),
 `place.location.lat()` / `.lng()` and `place.displayName`. The `componentForm` values *are* those
-property names, so the lookup is a single step: `comp[componentForm[addressType]]`.
+property names, so the lookup starts as a single step: `comp[componentForm[addressType]]`. It then
+falls back to the other property and finally to `''`, because Google omits `shortText` on some
+components — `administrative_area_level_2` in Australia especially — and the `County` strip below
+would throw a `TypeError` on `undefined`, aborting the rest of the loop.
 
 Sequence on every selection:
 
@@ -229,7 +235,7 @@ name, then `doBranching()`.
 non-text fields. Given an element id (or the literal `'latitude'`/`'longitude'`, which are looked
 up by name instead) it:
 
-- sets `.val(value)` and fires `.change()`;
+- sets `.val(value)`, re-enables the element, and fires `.change()`;
 - for `.hiddenradio` fields, checks the matching `<name>___radio` input;
 - for `<select>`, tries an exact option value, then the value with spaces replaced by underscores,
   then an `Other` option, then a single option whose text matches — and if none of those match,
@@ -390,6 +396,14 @@ above against the real helpers.
   it built a `google.maps.Circle` from the un-imported `maps` library and threw silently inside
   the geolocation callback; it now assigns a `CircleLiteral`. Clearing the search box again wipes
   the component fields, behaviour that previously existed only on the removed legacy path.
+  **Latitude and longitude are now actually saved** — they were disabled on load like every other
+  destination but, unlike the components, nothing ever re-enabled them, so REDCap never received
+  the coordinates; re-enabling is now centralised in `updateValue()`. Because that also covers the
+  clear path, emptying the search box now clears the stored component values on save instead of
+  only blanking them on screen. **A missing `shortText` no longer breaks the fill** — Google omits
+  it on some components (`administrative_area_level_2` in AU), and stripping `County` from
+  `undefined` threw a `TypeError` that aborted the component loop, leaving state, postcode and
+  country unfilled; the lookup now falls back to the other property and then to `''`.
 - **v1.1** — New Places API (`PlaceAutocompleteElement`) preferred, with legacy
   `google.maps.places.Autocomplete` fallback; inline bootstrap loader for the Maps API;
   multi-instrument guard; Place Name field; unit/sub-premise capture plus opt-in recovery from

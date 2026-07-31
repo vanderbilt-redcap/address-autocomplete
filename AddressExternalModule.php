@@ -379,6 +379,19 @@ SCRIPT;
 						}
 					}
 
+					// Disabled inputs are not submitted, so anything that writes must also
+					// make its element submittable. The component loop, applyUnitToStreetNumber()
+					// and the place-name write already do this at their call sites; latitude and
+					// longitude have no call site of their own, which is why they were never
+					// saved. Re-enabling here covers every write path at once.
+					//
+					// This deliberately also fires on the clear path (updateValue(id, '')), so
+					// emptying the search box really does clear the stored values instead of
+					// blanking them in the DOM while the disabled field keeps the old value in
+					// the database. Fields still start disabled on page load: nothing calls
+					// updateValue() until the user selects or clears an address.
+					element.prop('disabled', false);
+
 					element.change();
 
 					if (element.hasClass('rc-autocomplete')) {
@@ -532,7 +545,11 @@ SCRIPT;
 							var comp = place.addressComponents[i];
 							var addressType = comp.types[0];
 							if (componentForm[addressType] && document.getElementById(autocompletePrefix + addressType)) {
-								var val = comp[componentForm[addressType]];   // 'shortText' or 'longText'
+								// Preferred property first ('shortText' or 'longText'), then the
+								// other one. Google omits shortText on some components — notably
+								// administrative_area_level_2 in AU — and the replace() below
+								// would throw on undefined, aborting the rest of this loop.
+								var val = comp[componentForm[addressType]] || comp.shortText || comp.longText || '';
 								if (addressType === 'administrative_area_level_2') {
 									val = $.trim(val.replace('County', ''));
 								}
