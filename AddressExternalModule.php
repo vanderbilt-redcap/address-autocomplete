@@ -5,32 +5,35 @@ use ExternalModules\ExternalModules;
 
 class AddressExternalModule extends AbstractExternalModule
 {
-	function hook_survey_page($project_id, $record, $instrument, $event_id, $group_id) {
-		$this->addAddressAutoCompletion($project_id, $record, $instrument, $event_id, $group_id);
-	}
+    public function hook_survey_page($project_id, $record, $instrument, $event_id, $group_id)
+    {
+        $this->addAddressAutoCompletion($project_id, $record, $instrument, $event_id, $group_id);
+    }
 
-	function hook_data_entry_form($project_id, $record, $instrument, $event_id, $group_id) {
-		$this->addAddressAutoCompletion($project_id, $record, $instrument, $event_id, $group_id);
-	}
+    public function hook_data_entry_form($project_id, $record, $instrument, $event_id, $group_id)
+    {
+        $this->addAddressAutoCompletion($project_id, $record, $instrument, $event_id, $group_id);
+    }
 
-	function addAddressAutoCompletion($project_id, $record, $instrument, $event_id, $group_id) {
-		$key = $this->getProjectSetting('google-api-key',$project_id);
-		$autocomplete = $this->getProjectSetting('autocomplete',$project_id);
-		$streetNumber = $this->getProjectSetting('street-number',$project_id);
-		$street = $this->getProjectSetting('street',$project_id);
-		$city = $this->getProjectSetting('city',$project_id);
-		$county = $this->getProjectSetting('county',$project_id);
-		$state = $this->getProjectSetting('state',$project_id);
-		$zip = $this->getProjectSetting('zip',$project_id);
-		$country = $this->getProjectSetting('country',$project_id);
-		$latitude = $this->getProjectSetting('latitude',$project_id);
-		$longitude = $this->getProjectSetting('longitude',$project_id);
-		$import = $this->getProjectSetting('import-google-api',$project_id);
+    public function addAddressAutoCompletion($project_id, $record, $instrument, $event_id, $group_id)
+    {
+        $key = $this->getProjectSetting('google-api-key', $project_id);
+        $autocomplete = $this->getProjectSetting('autocomplete', $project_id);
+        $streetNumber = $this->getProjectSetting('street-number', $project_id);
+        $street = $this->getProjectSetting('street', $project_id);
+        $city = $this->getProjectSetting('city', $project_id);
+        $county = $this->getProjectSetting('county', $project_id);
+        $state = $this->getProjectSetting('state', $project_id);
+        $zip = $this->getProjectSetting('zip', $project_id);
+        $country = $this->getProjectSetting('country', $project_id);
+        $latitude = $this->getProjectSetting('latitude', $project_id);
+        $longitude = $this->getProjectSetting('longitude', $project_id);
+        $import = $this->getProjectSetting('import-google-api', $project_id);
 
-		if ($key && $autocomplete) {
-			# configure the form; disable fields; set IDs
+        if ($key && $autocomplete) {
+            # configure the form; disable fields; set IDs
 
-			?>
+            ?>
 				<script>
 					var autocompletePrefix = 'googleSearch_';
 					var autocompleteId = autocompletePrefix+'autocomplete';
@@ -96,13 +99,13 @@ class AddressExternalModule extends AbstractExternalModule
 					var placeSearch, autocomplete;
 					var componentForm = {
 						// Lets check and see which fields we need
-						<?php echo ($streetNumber ? "street_number: 'short_name'," : "" ); ?>
-						<?php echo ($street ? "route: 'long_name'," : "" ); ?>
-						<?php echo ($city ? "locality: 'long_name'," : "" ); ?>
-						<?php echo ($county ? "administrative_area_level_2: 'short_name'," : "" ); ?>
-						<?php echo ($state ? "administrative_area_level_1: 'short_name'," : "" ); ?>
-						<?php echo ($country ? "country: 'long_name'," : "" ); ?>
-						<?php echo ($zip ? "postal_code: 'short_name'," : "" ); ?>
+						<?php echo($streetNumber ? "street_number: 'short_name'," : ""); ?>
+						<?php echo($street ? "route: 'long_name'," : ""); ?>
+						<?php echo($city ? "locality: 'long_name'," : ""); ?>
+						<?php echo($county ? "administrative_area_level_2: 'short_name'," : ""); ?>
+						<?php echo($state ? "administrative_area_level_1: 'short_name'," : ""); ?>
+						<?php echo($country ? "country: 'long_name'," : ""); ?>
+						<?php echo($zip ? "postal_code: 'short_name'," : ""); ?>
 					};
 
 					function initAutocomplete() {
@@ -193,9 +196,9 @@ class AddressExternalModule extends AbstractExternalModule
 
 						if (place !== undefined) {
 							<?php
-								echo ($latitude ? "updateValue('latitude',place.geometry.location.lat());\n" : "");
-								echo ($longitude ? "updateValue('longitude',place.geometry.location.lng());\n" : "");
-							?>
+                                echo($latitude ? "updateValue('latitude',place.geometry.location.lat());\n" : "");
+            echo($longitude ? "updateValue('longitude',place.geometry.location.lng());\n" : "");
+            ?>
 
 							/* Get each component of the address from the place details and fill the corresponding field on the form. */
 							for (var i = 0; i < place.address_components.length; i++) {
@@ -212,9 +215,9 @@ class AddressExternalModule extends AbstractExternalModule
 						} else {
 							// undefined place implies a blank address, lat and long must be blanked
 							<?php
-								echo ($latitude ? "updateValue('latitude', '');\n" : "");
-								echo ($longitude ? "updateValue('longitude', '');\n" : "");
-							?>
+                echo($latitude ? "updateValue('latitude', '');\n" : "");
+            echo($longitude ? "updateValue('longitude', '');\n" : "");
+            ?>
 						}
 						doBranching();
 					}
@@ -239,9 +242,9 @@ class AddressExternalModule extends AbstractExternalModule
 				</script>
 
 			<?php
-			if ($import) {
-				echo "<script type=\"text/javascript\" src=\"https://maps.googleapis.com/maps/api/js?key=".$key."&libraries=places\"></script>";
-			}
-		}
-	}
+            if ($import) {
+                echo "<script type=\"text/javascript\" src=\"https://maps.googleapis.com/maps/api/js?key=".$key."&libraries=places\"></script>";
+            }
+        }
+    }
 }
