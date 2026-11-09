@@ -1,129 +1,136 @@
 {
-	"name": "Address Autocompletion",
-
-	"namespace": "Vanderbilt\\AddressExternalModule",
-
-	"description": "This module takes address coordinates from fields specified and autocompletes a street address. Requires a Google API key and an https connection.",
-
-	"authors": [
-	  {
-		"name": "Scott J. Pearson",
-		"email": "datacore@vumc.org",
-		"institution": "Vanderbilt University Medical Center"
-	  },
-	  {
-		"name": "Mark McEver",
-		"email": "datacore@vumc.org",
-		"institution": "Vanderbilt University Medical Center"
-	  },
-	  {
-		"name": "Kyle McGuffin",
-		"email": "datacore@vumc.org",
-		"institution": "Vanderbilt University Medical Center"
-	  }
-	],
-
-	"permissions": [
-		"hook_data_entry_form",
-		"hook_survey_page"
-	],
-
-	"links": {
-	},
-
-	"project-settings": [
-		{
-			"key": "google-api-key",
-			"name": "Google API Key",
-			"required": true,
-			"type": "text"
-		},
-		{
-			"key": "autocomplete",
-			"name": "Autocomplete Field (text only)",
-			"required": true,
-			"type": "field-list",
-			"repeatable": false,
-			"autocomplete": true
-		},
-		{
-			"key": "street-number",
-			"name": "Street Number Field",
-			"required": false,
-			"type": "field-list",
-			"repeatable": false,
-			"autocomplete": true
-		},
-		{
-			"key": "street",
-			"name": "Street Field",
-			"required": false,
-			"type": "field-list",
-			"repeatable": false,
-			"autocomplete": true
-		},
-		{
-			"key": "city",
-			"name": "City Field",
-			"required": false,
-			"type": "field-list",
-			"repeatable": false,
-			"autocomplete": true
-		},
-		{
-			"key": "county",
-			"name": "County Field",
-			"required": false,
-			"type": "field-list",
-			"repeatable": false,
-			"autocomplete": true
-		},
-		{
-			"key": "state",
-			"name": "State Field",
-			"required": false,
-			"type": "field-list",
-			"repeatable": false,
-			"autocomplete": true
-		},
-		{
-			"key": "zip",
-			"name": "Zip Code Field",
-			"required": false,
-			"type": "field-list",
-			"repeatable": false,
-			"autocomplete": true
-		},
-		{
-			"key": "country",
-			"name": "Country Field",
-			"required": false,
-			"type": "field-list",
-			"repeatable": false,
-			"autocomplete": true
-		},
-		{
-			"key": "latitude",
-			"name": "Latitude Field",
-			"required": false,
-			"type": "field-list",
-			"repeatable": false,
-			"autocomplete": true
-		},
-		{
-			"key": "longitude",
-			"name": "Longitude Field",
-			"required": false,
-			"type": "field-list",
-			"repeatable": false,
-			"autocomplete": true
-		},
-		{
-			"key": "import-google-api",
-			"name": "Import Google API",
-			"required": false,
-			"type": "checkbox",
-			"repeatable": false
-		}
-	]
+  "name": "Address Autocompletion",
+  "namespace": "Vanderbilt\\AddressExternalModule",
+  "description": "This module takes address coordinates from fields specified and autocompletes a street address. Requires a Google API key and an https connection.",
+  "authors": [
+    {
+      "name": "Scott J. Pearson",
+      "email": "datacore@vumc.org",
+      "institution": "Vanderbilt University Medical Center"
+    },
+    {
+      "name": "Mark McEver",
+      "email": "datacore@vumc.org",
+      "institution": "Vanderbilt University Medical Center"
+    },
+    {
+      "name": "Kyle McGuffin",
+      "email": "datacore@vumc.org",
+      "institution": "Vanderbilt University Medical Center"
+    },
+    {
+      "name": "Ryan Moore",
+      "email": "datacore@vumc.org",
+      "institution": "Vanderbilt University Medical Center"
+    }
+  ],
+  "permissions": [
+    "hook_data_entry_form",
+    "hook_survey_page"
+  ],
+  "links": {
+  },
+  "project-settings": [
+    {
+      "key": "google-api-key",
+      "name": "Google API Key",
+      "required": true,
+      "type": "text"
+    },
+    {
+      "key": "import-google-api",
+      "name": "Import Google API",
+      "required": false,
+      "type": "checkbox",
+      "repeatable": false
+    },
+    {
+      "key": "address-settings",
+      "name": "All Fields for Address Information",
+      "type": "sub_settings",
+      "repeatable": true,
+      "sub_settings": [
+        {
+          "key": "autocomplete",
+          "name": "Autocomplete Field (text only)",
+          "required": true,
+          "type": "field-list",
+          "repeatable": false,
+          "autocomplete": true
+        },
+        {
+          "key": "street-number",
+          "name": "Street Number Field",
+          "required": false,
+          "type": "field-list",
+          "repeatable": false,
+          "autocomplete": true
+        },
+        {
+          "key": "street",
+          "name": "Street Field",
+          "required": false,
+          "type": "field-list",
+          "repeatable": false,
+          "autocomplete": true
+        },
+        {
+          "key": "city",
+          "name": "City Field",
+          "required": false,
+          "type": "field-list",
+          "repeatable": false,
+          "autocomplete": true
+        },
+        {
+          "key": "county",
+          "name": "County Field",
+          "required": false,
+          "type": "field-list",
+          "repeatable": false,
+          "autocomplete": true
+        },
+        {
+          "key": "state",
+          "name": "State Field",
+          "required": false,
+          "type": "field-list",
+          "repeatable": false,
+          "autocomplete": true
+        },
+        {
+          "key": "zip",
+          "name": "Zip Code Field",
+          "required": false,
+          "type": "field-list",
+          "repeatable": false,
+          "autocomplete": true
+        },
+        {
+          "key": "country",
+          "name": "Country Field",
+          "required": false,
+          "type": "field-list",
+          "repeatable": false,
+          "autocomplete": true
+        },
+        {
+          "key": "latitude",
+          "name": "Latitude Field",
+          "required": false,
+          "type": "field-list",
+          "repeatable": false,
+          "autocomplete": true
+        },
+        {
+          "key": "longitude",
+          "name": "Longitude Field",
+          "required": false,
+          "type": "field-list",
+          "repeatable": false,
+          "autocomplete": true
+        }
+      ]
+    }
+  ]
 }
