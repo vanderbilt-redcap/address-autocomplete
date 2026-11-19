@@ -3,14 +3,14 @@
 use ExternalModules\AbstractExternalModule;
 use ExternalModules\ExternalModules;
 
-class AddressExternalModule extends AbstractExternalModule
+class AddressExternalModule extends \ExternalModules\AbstractExternalModule
 {
-    public function hook_survey_page($project_id, $record, $instrument, $event_id, $group_id)
+    public function redcap_survey_page($project_id, $record, $instrument, $event_id, $group_id)
     {
         $this->addAddressAutoCompletion($project_id, $record, $instrument, $event_id, $group_id);
     }
 
-    public function hook_data_entry_form($project_id, $record, $instrument, $event_id, $group_id)
+    public function redcap_data_entry_form($project_id, $record, $instrument, $event_id, $group_id)
     {
         $this->addAddressAutoCompletion($project_id, $record, $instrument, $event_id, $group_id);
     }
@@ -19,6 +19,15 @@ class AddressExternalModule extends AbstractExternalModule
     {
         $key = $this->getProjectSetting('google-api-key', $project_id);
         $import = $this->getProjectSetting('import-google-api', $project_id);
+        $useMap = $this->getProjectSetting('use-map', $project_id);
+        $defaultLat = $this->getProjectSetting('default-lat', $project_id);
+        if (!is_numeric($defaultLat)) {
+            $defaultLat = "36.142";
+        }
+        $defaultLng = $this->getProjectSetting('default-lng', $project_id);
+        if (!is_numeric($defaultLng)) {
+            $defaultLng = "-86.801";
+        }
         if ($key) {
             $autocompletes = $this->getProjectSetting('autocomplete', $project_id);
             $streetNumbers = $this->getProjectSetting('street-number', $project_id);
@@ -31,43 +40,42 @@ class AddressExternalModule extends AbstractExternalModule
             $latitudes = $this->getProjectSetting('latitude', $project_id);
             $longitudes = $this->getProjectSetting('longitude', $project_id);
 
-            // TODO Get default lat/long and lat/long from record for starting point on map as shown below.
-            /*
-            $defaultLatitude = $this->getProjectSetting("default-latitude");
-            $defaultLongitude = $this->getProjectSetting("default-longitude");
-            $recordData = $this->getData($project_id,$record,$event_id);
-            $startLat = $recordData[$latitude];
-            $startLong = $recordData[$longitude];
-             * */
+            $latlngFields = array_filter(array_merge($latitudes, $longitudes));
+            $recordData = [];
+            if (!empty($latlngFields)) {
+                $recordData = \REDCap::getData([
+                    'project_id' => $project_id,
+                    'return_format' => 'json-array',
+                    'records' => [$record],
+                    'fields' => $latlngFields,
+                    'events' => [$event_id]
+                ])[0] ?? [];
+            }
 
             $width = 600;
+            $this->initializeJavascriptModuleObject();
+            $this->framework->tt_addToJavascriptModuleObject("componentForm", [
+                    ...($streetNumbers ? ["street_number" => 'short_name'] : []),
+                    ...($streets ? ["route" => 'long_name'] : []),
+                    ...($cities ? ["locality" => 'long_name'] : []),
+                    ...($counties ? ["administrative_area_level_2" => 'short_name'] : []),
+                    ...($states ? ["administrative_area_level_1" => 'short_name'] : []),
+                    ...($countries ? ["country" => 'long_name'] : []),
+                    ...($zips ? ["postal_code" => 'short_name'] : [])
+            ]);
+            $this->framework->tt_addToJavascriptModuleObject("coordsForm", [
+                    ...($latitudes ? ["0" => 'lat'] : []),
+                    ...($longitudes ? ["1" => 'lng'] : [])
+            ]);
+            $this->framework->tt_addToJavascriptModuleObject("autocomplete", []);
+            $this->framework->tt_addToJavascriptModuleObject("map", []);
+
             ?>
             <script>
-                var autocompletePrefix = 'googleSearch_';
-                var autocompleteId = autocompletePrefix+'autocomplete';
-                var autocomplete = {};
-                var map = {};
-
-                var componentForm = {
-                    // Lets check and see which fields we need
-                    <?php echo($streetNumbers ? "street_number: 'short_name'," : ""); ?>
-                    <?php echo($streets ? "route: 'long_name'," : ""); ?>
-                    <?php echo($cities ? "locality: 'long_name'," : ""); ?>
-                    <?php echo($counties ? "administrative_area_level_2: 'short_name'," : ""); ?>
-                    <?php echo($states ? "administrative_area_level_1: 'short_name'," : ""); ?>
-                    <?php echo($countries ? "country: 'long_name'," : ""); ?>
-                    <?php echo($zips ? "postal_code: 'short_name'," : ""); ?>
-                };
-                var coordsForm = {
-                    <?php echo($latitudes ? "0: 'lat'," : ""); ?>
-                    <?php echo($longitudes ? "1: 'lng'," : ""); ?>
-                };
-
-                var MAP_DIV_ELEMENT_ID = "google_map";
-                var DEFAULT_ZOOM_WHEN_NO_COORDINATE_EXISTS = '15';
-                var DEFAULT_CENTER_LATITUDE = '.(empty($startLat) ? $defaultLatitude : $startLat).';
-                var DEFAULT_CENTER_LONGITUDE = '.(empty($startLong) ? $defaultLongitude : $startLong).';
-                var DEFAULT_ZOOM_WHEN_COORDINATE_EXISTS = 15;
+                const module = <?=$this->framework->getJavascriptModuleObjectName()?>;
+                const autocompletePrefix = 'googleSearch_';
+                const autocompleteId = autocompletePrefix+'autocomplete';
+                const MAP_DIV_ELEMENT_ID = "google_map";
             </script>
             <?php
             foreach ($autocompletes as $index => $autocomplete) {
@@ -83,6 +91,8 @@ class AddressExternalModule extends AbstractExternalModule
                     $latitude = $latitudes[$index];
                     $longitude = $longitudes[$index];
 
+                    $startLat = is_numeric(($recordData[$latitude] ?? "")) ? $recordData[$latitude] : "";
+                    $startLng = is_numeric(($recordData[$longitude] ?? "")) ? $recordData[$longitude] : "";
                     # configure the form; disable fields; set IDs
 
                     ?>
@@ -139,10 +149,10 @@ class AddressExternalModule extends AbstractExternalModule
                             $('[name="<?php echo $autocomplete; ?>"]').attr('placeholder', 'Enter your address here');
                             $('[name="<?php echo $autocomplete; ?>"]').on('keydown', function() { geolocate(<?php echo $index; ?>); });
                             $('[name="<?php echo $autocomplete; ?>"]').focus(function() { geolocate(<?php echo $index; ?>); });
-                            $('#'+autocompleteId+<?php echo $index; ?>).closest('tr[id$=\'-tr\']').after("<tr id='"+MAP_DIV_ELEMENT_ID+"<?php echo $index; ?>-tr'><td colspan='2' style='text-align: center;'><div style='width:<?php echo $width; ?>px; font-size: 12px; font-style: italic;'>Use the controls to zoom. Double click to set the coordinates.</div><div id='"+MAP_DIV_ELEMENT_ID+"<?php echo $index; ?>' style='width:<?php echo $width; ?>px; height:450px;'></div></td></tr>");
+                            <?php echo($useMap ? "$('#'+autocompleteId+$index).closest('tr[id$=\'-tr\']').after(\"<tr id='\"+MAP_DIV_ELEMENT_ID+\"$index-tr'><td colspan='2' style='text-align: center;'><div style='width:".$width."px; font-size: 12px; font-style: italic;'>Use the controls to zoom. Double click to set the coordinates.</div><div id='\"+MAP_DIV_ELEMENT_ID+\"$index' style='width:".$width."px; height:450px;'></div></td></tr>\");" : ""); ?>
                             <?php endif; ?>
                             initAutocomplete(<?php echo $index; ?>);
-                            initializeGoogleMap('<?php echo $index; ?>')
+                            <?php echo ($useMap ? "initializeGoogleMap('$index','".($startLat ?: $defaultLat)."','".($startLng ?: $defaultLng)."');" : "") ?>
                         });
                     </script>
                     <?php
@@ -203,8 +213,10 @@ class AddressExternalModule extends AbstractExternalModule
                     $('#'+autocompleteId+index).change();
 
                     /* Get the place details from the autocomplete object. */
-                    var place = autocomplete[index].getPlace();
+                    var place = module.tt('autocomplete')[index].getPlace();
 
+                    let componentForm = module.tt('componentForm');
+                    let coordsForm = module.tt('coordsForm');
                     for (var component in componentForm) {
                         updateValue(autocompletePrefix+component+index, '');
                     }
@@ -246,14 +258,12 @@ class AddressExternalModule extends AbstractExternalModule
 
             <script>
                 function initAutocomplete(index) {
-                    autocomplete[index] = new google.maps.places.Autocomplete(
+                    module.tt('autocomplete')[index] = new google.maps.places.Autocomplete(
                         (document.getElementById(autocompleteId+index)),
                         {types: ['address']}
                     );
                     /* When the user selects an address from the dropdown, populate the address fields in the form. */
-                    autocomplete[index].addListener('place_changed', () => {
-                        console.log('place has changed for '+index);
-                        console.log(autocomplete[index].getPlace());
+                    module.tt('autocomplete')[index].addListener('place_changed', () => {
                         fillInAddress(index);
                     })
 
@@ -278,33 +288,33 @@ class AddressExternalModule extends AbstractExternalModule
                                 center: geolocation,
                                 radius: position.coords.accuracy
                             });
-                            autocomplete[index].setBounds(circle.getBounds());
+                            module.tt('autocomplete')[index].setBounds(circle.getBounds());
                         });
                     }
                 }
 
-                function initializeGoogleMap(index) {
-                    map[index] = new google.maps.Map(document.getElementById(MAP_DIV_ELEMENT_ID+index),
+                function initializeGoogleMap(index, defaultLat, defaultLng) {
+                    module.tt('map')[index] = new google.maps.Map(document.getElementById(MAP_DIV_ELEMENT_ID+index),
                         {
                             zoom: 15,
-                            //center: new google.maps.LatLng(DEFAULT_CENTER_LATITUDE,DEFAULT_CENTER_LONGITUDE),
-                            center: new google.maps.LatLng(37.4174295,-86.8812967),
+                            center: new google.maps.LatLng(defaultLat,defaultLng),
                             overviewMapControl:true,
                             overviewMapControlOptions:(true),
                             mapTypeId: google.maps.MapTypeId.ROADMAP,
                             streetViewControl: false,
                             fullscreenControl: false
                         });
-                    //marker = new google.maps.Marker({map:map,position: new google.maps.LatLng(DEFAULT_CENTER_LATITUDE,DEFAULT_CENTER_LONGITUDE)});
-                    marker = new google.maps.Marker({map:map[index],position: new google.maps.LatLng(37.4174295,-86.8812967)});
+                    console.log(defaultLat);
+                    console.log(defaultLng);
+                    marker = new google.maps.Marker({map:module.tt('map')[index],position: new google.maps.LatLng(defaultLat,defaultLng)});
 
-                    google.maps.event.addListener(map[index], "click", async (event) => {
+                    google.maps.event.addListener(module.tt('map')[index], "click", async (event) => {
                         await googleMapClickHandler(event,index)
                     });
                 }
 
                 async function googleMapClickHandler(event,index) {
-                    if(map[index].getZoom() < 15) {
+                    if(module.tt('map')[index].getZoom() < 15) {
                         alert("You need to zoom in more to set the location accurately." );
                         return;
                     }
@@ -318,7 +328,7 @@ class AddressExternalModule extends AbstractExternalModule
                             var address_value = data.results[0];
                             const element = document.querySelector("#"+autocompleteId+index);
                             element.value = address_value.formatted_address;
-                            autocomplete[index].set("place",address_value);
+                            module.tt('autocomplete')[index].set("place",address_value);
                             fillInAddress(index);
                         }
                     } catch (error) {

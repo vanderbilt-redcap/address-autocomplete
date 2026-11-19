@@ -2,6 +2,7 @@
   "name": "Address Autocompletion",
   "namespace": "Vanderbilt\\AddressExternalModule",
   "description": "This module takes address coordinates from fields specified and autocompletes a street address. Requires a Google API key and an https connection.",
+  "framework-version": 16,
   "authors": [
     {
       "name": "Scott J. Pearson",
@@ -24,10 +25,6 @@
       "institution": "Vanderbilt University Medical Center"
     }
   ],
-  "permissions": [
-    "hook_data_entry_form",
-    "hook_survey_page"
-  ],
   "links": {
   },
   "project-settings": [
@@ -43,6 +40,29 @@
       "required": false,
       "type": "checkbox",
       "repeatable": false
+    },
+    {
+      "key": "use-map",
+      "name": "Display Clickable Google Map Under Address Autocomplete Field",
+      "type": "checkbox"
+    },
+    {
+      "key": "default-lat",
+      "name": "Default Latitude for Google Maps",
+      "type": "text",
+      "branchingLogic": {
+        "field": "use-map",
+        "value": "1"
+      }
+    },
+    {
+      "key": "default-lng",
+      "name": "Default Longitude for Google Maps",
+      "type": "text",
+      "branchingLogic": {
+        "field": "use-map",
+        "value": "1"
+      }
     },
     {
       "key": "address-settings",
@@ -132,5 +152,8 @@
         }
       ]
     }
-  ]
+  ],
+  "compatibility": {
+    "php-version-min": "8.1.0"
+  }
 }
