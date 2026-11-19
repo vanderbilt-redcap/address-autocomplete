@@ -1,76 +1,75 @@
-<?php namespace Vanderbilt\AddressExternalModule;
+<?php
+
+namespace Vanderbilt\AddressExternalModule;
 
 use ExternalModules\AbstractExternalModule;
 use ExternalModules\ExternalModules;
 
 class AddressExternalModule extends \ExternalModules\AbstractExternalModule
 {
-    public function redcap_survey_page($project_id, $record, $instrument, $event_id, $group_id)
-    {
-        $this->addAddressAutoCompletion($project_id, $record, $instrument, $event_id, $group_id);
-    }
+	public function redcap_survey_page($project_id, $record, $instrument, $event_id, $group_id) {
+		$this->addAddressAutoCompletion($project_id, $record, $instrument, $event_id, $group_id);
+	}
 
-    public function redcap_data_entry_form($project_id, $record, $instrument, $event_id, $group_id)
-    {
-        $this->addAddressAutoCompletion($project_id, $record, $instrument, $event_id, $group_id);
-    }
+	public function redcap_data_entry_form($project_id, $record, $instrument, $event_id, $group_id) {
+		$this->addAddressAutoCompletion($project_id, $record, $instrument, $event_id, $group_id);
+	}
 
-    public function addAddressAutoCompletion($project_id, $record, $instrument, $event_id, $group_id)
-    {
-        $key = $this->getProjectSetting('google-api-key', $project_id);
-        $import = $this->getProjectSetting('import-google-api', $project_id);
-        $useMap = $this->getProjectSetting('use-map', $project_id);
-        $defaultLat = $this->getProjectSetting('default-lat', $project_id);
-        if (!is_numeric($defaultLat)) {
-            $defaultLat = "36.142";
-        }
-        $defaultLng = $this->getProjectSetting('default-lng', $project_id);
-        if (!is_numeric($defaultLng)) {
-            $defaultLng = "-86.801";
-        }
-        if ($key) {
-            $autocompletes = $this->getProjectSetting('autocomplete', $project_id);
-            $streetNumbers = $this->getProjectSetting('street-number', $project_id);
-            $streets = $this->getProjectSetting('street', $project_id);
-            $cities = $this->getProjectSetting('city', $project_id);
-            $counties = $this->getProjectSetting('county', $project_id);
-            $states = $this->getProjectSetting('state', $project_id);
-            $zips = $this->getProjectSetting('zip', $project_id);
-            $countries = $this->getProjectSetting('country', $project_id);
-            $latitudes = $this->getProjectSetting('latitude', $project_id);
-            $longitudes = $this->getProjectSetting('longitude', $project_id);
+	public function addAddressAutoCompletion($project_id, $record, $instrument, $event_id, $group_id) {
+		$key = $this->getProjectSetting('google-api-key', $project_id);
+		$import = $this->getProjectSetting('import-google-api', $project_id);
+		$useMap = $this->getProjectSetting('use-map', $project_id);
+		$defaultLat = $this->getProjectSetting('default-lat', $project_id);
+		if (!is_numeric($defaultLat)) {
+			$defaultLat = "36.142";
+		}
+		$defaultLng = $this->getProjectSetting('default-lng', $project_id);
+		if (!is_numeric($defaultLng)) {
+			$defaultLng = "-86.801";
+		}
+		if ($key) {
+			$autocompletes = $this->getProjectSetting('autocomplete', $project_id);
+			$streetNumbers = $this->getProjectSetting('street-number', $project_id);
+			$streets = $this->getProjectSetting('street', $project_id);
+			$cities = $this->getProjectSetting('city', $project_id);
+			$counties = $this->getProjectSetting('county', $project_id);
+			$states = $this->getProjectSetting('state', $project_id);
+			$zips = $this->getProjectSetting('zip', $project_id);
+			$countries = $this->getProjectSetting('country', $project_id);
+			$latitudes = $this->getProjectSetting('latitude', $project_id);
+			$longitudes = $this->getProjectSetting('longitude', $project_id);
 
-            $latlngFields = array_filter(array_merge($latitudes, $longitudes));
-            $recordData = [];
-            if (!empty($latlngFields)) {
-                $recordData = $this->framework->escape(\REDCap::getData([
-                    'project_id' => $project_id,
-                    'return_format' => 'json-array',
-                    'records' => [$record],
-                    'fields' => $latlngFields,
-                    'events' => [$event_id]
-                ])[0]) ?? [];
-            }
+			$latlngFields = array_filter(array_merge($latitudes, $longitudes));
+			$recordData = [];
+			if (!empty($latlngFields)) {
+				$recordData = $this->framework->escape(\REDCap::getData([
+					'project_id' => $project_id,
+					'return_format' => 'json-array',
+					'records' => [$record],
+					'fields' => $latlngFields,
+					'events' => [$event_id]
+				])[0]) ?? [];
+			}
 
-            $width = 600;
-            $this->initializeJavascriptModuleObject();
-            $this->framework->tt_addToJavascriptModuleObject("componentForm", [
-                    ...($streetNumbers ? ["street_number" => 'short_name'] : []),
-                    ...($streets ? ["route" => 'long_name'] : []),
-                    ...($cities ? ["locality" => 'long_name'] : []),
-                    ...($counties ? ["administrative_area_level_2" => 'short_name'] : []),
-                    ...($states ? ["administrative_area_level_1" => 'short_name'] : []),
-                    ...($countries ? ["country" => 'long_name'] : []),
-                    ...($zips ? ["postal_code" => 'short_name'] : [])
-            ]);
-            $this->framework->tt_addToJavascriptModuleObject("coordsForm", [
-                    ...($latitudes ? ["0" => 'lat'] : []),
-                    ...($longitudes ? ["1" => 'lng'] : [])
-            ]);
-            $this->framework->tt_addToJavascriptModuleObject("autocomplete", []);
-            $this->framework->tt_addToJavascriptModuleObject("map", []);
+			$width = 600;
+			$this->initializeJavascriptModuleObject();
+			$this->framework->tt_addToJavascriptModuleObject("componentForm", [
+					...($streetNumbers ? ["street_number" => 'short_name'] : []),
+					...($streets ? ["route" => 'long_name'] : []),
+					...($cities ? ["locality" => 'long_name'] : []),
+					...($counties ? ["administrative_area_level_2" => 'short_name'] : []),
+					...($states ? ["administrative_area_level_1" => 'short_name'] : []),
+					...($countries ? ["country" => 'long_name'] : []),
+					...($zips ? ["postal_code" => 'short_name'] : [])
+			]);
+			$this->framework->tt_addToJavascriptModuleObject("coordsForm", [
+					...($latitudes ? ["0" => 'lat'] : []),
+					...($longitudes ? ["1" => 'lng'] : [])
+			]);
+			$this->framework->tt_addToJavascriptModuleObject("autocomplete", []);
+			$this->framework->tt_addToJavascriptModuleObject("map", []);
 
-            ?>
+			?>
             <script>
                 const module = <?=$this->framework->getJavascriptModuleObjectName()?>;
                 const autocompletePrefix = 'googleSearch_';
@@ -78,24 +77,24 @@ class AddressExternalModule extends \ExternalModules\AbstractExternalModule
                 const MAP_DIV_ELEMENT_ID = "google_map";
             </script>
             <?php
-            foreach ($autocompletes as $index => $autocomplete) {
-                if ($autocomplete) {
-                    $numFields = 0;
-                    $streetNumber = $streetNumbers[$index];
-                    $street = $streets[$index];
-                    $city = $cities[$index];
-                    $county = $counties[$index];
-                    $state = $states[$index];
-                    $zip = $zips[$index];
-                    $country = $countries[$index];
-                    $latitude = $latitudes[$index];
-                    $longitude = $longitudes[$index];
+			foreach ($autocompletes as $index => $autocomplete) {
+				if ($autocomplete) {
+					$numFields = 0;
+					$streetNumber = $streetNumbers[$index];
+					$street = $streets[$index];
+					$city = $cities[$index];
+					$county = $counties[$index];
+					$state = $states[$index];
+					$zip = $zips[$index];
+					$country = $countries[$index];
+					$latitude = $latitudes[$index];
+					$longitude = $longitudes[$index];
 
-                    $startLat = is_numeric(($recordData[$latitude] ?? "")) ? $recordData[$latitude] : "";
-                    $startLng = is_numeric(($recordData[$longitude] ?? "")) ? $recordData[$longitude] : "";
-                    # configure the form; disable fields; set IDs
+					$startLat = is_numeric(($recordData[$latitude] ?? "")) ? $recordData[$latitude] : "";
+					$startLng = is_numeric(($recordData[$longitude] ?? "")) ? $recordData[$longitude] : "";
+					# configure the form; disable fields; set IDs
 
-                    ?>
+					?>
                     <script>
                         $(document).ready(function() {
                             <?php if ($streetNumber): ?>
@@ -156,9 +155,9 @@ class AddressExternalModule extends \ExternalModules\AbstractExternalModule
                         });
                     </script>
                     <?php
-                }
-            }
-            ?>
+				}
+			}
+			?>
             <!-- Google code configured to this system -->
             <script>
                 function updateValue(id, value){
@@ -337,9 +336,9 @@ class AddressExternalModule extends \ExternalModules\AbstractExternalModule
                 }
             </script>
             <?php
-            if ($import) {
-                echo "<script type=\"text/javascript\" src=\"https://maps.googleapis.com/maps/api/js?key=".$key."&libraries=places\"></script>";
-            }
-        }
-    }
+			if ($import) {
+				echo "<script type=\"text/javascript\" src=\"https://maps.googleapis.com/maps/api/js?key=".$key."&libraries=places\"></script>";
+			}
+		}
+	}
 }
