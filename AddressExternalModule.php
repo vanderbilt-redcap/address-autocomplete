@@ -43,13 +43,13 @@ class AddressExternalModule extends \ExternalModules\AbstractExternalModule
             $latlngFields = array_filter(array_merge($latitudes, $longitudes));
             $recordData = [];
             if (!empty($latlngFields)) {
-                $recordData = \REDCap::getData([
+                $recordData = $this->framework->escape(\REDCap::getData([
                     'project_id' => $project_id,
                     'return_format' => 'json-array',
                     'records' => [$record],
                     'fields' => $latlngFields,
                     'events' => [$event_id]
-                ])[0] ?? [];
+                ])[0]) ?? [];
             }
 
             $width = 600;
